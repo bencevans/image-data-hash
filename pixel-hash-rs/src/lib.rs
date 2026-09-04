@@ -1,122 +1,208 @@
-use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
+//! Streaming `jpeg_content_sha256_v1` implementation.
 
 use anyhow::{Result, bail};
-use image::{DynamicImage, GenericImageView, ImageFormat};
+use sha2::{Digest, Sha256};
+use std::fs::File;
+use std::io::{BufReader, Cursor, Read};
+use std::path::Path;
 
-fn pixel_md5<P: AsRef<Path>>(image_ref: P) -> Result<String> {
-    let path = image_ref.as_ref();
-
-    // Open the image
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-    let format = image::guess_format(&std::fs::read(path)?)?;
-    let img = image::load(reader, format)?;
-
-    hash_image(&img)
+fn byte<R: Read>(source: &mut R, message: &str) -> Result<u8> {
+    let mut value = [0u8; 1];
+    if source.read(&mut value)? == 0 {
+        bail!(message.to_owned());
+    }
+    Ok(value[0])
 }
 
-fn hash_image(img: &DynamicImage) -> Result<String> {
-    // Get pixel bytes in raw RGBA or native format
-    let pixel_bytes = img.as_bytes();  // Get bytes without moving
+pub fn jpeg_content_sha256_reader<R: Read>(mut source: R) -> Result<String> {
+    let mut digest = Sha256::new();
+    let mut soi = [0u8; 2];
+    source.read_exact(&mut soi)?;
+    if soi != [0xff, 0xd8] {
+        bail!("not a JPEG file");
+    }
+    digest.update(soi);
+    let mut in_scan = false;
+    let mut pending: Option<Vec<u8>> = None;
+    let mut scan = Vec::with_capacity(65536);
 
-    // Include mode (ColorType) and size
-    let color_type = img.color();
-    let dimensions = img.dimensions();
-    let meta_info = format!("{:?}_{:?}", color_type, dimensions);
+    loop {
+        if in_scan && pending.is_none() {
+            let value = byte(&mut source, "JPEG has no EOI marker")?;
+            if value != 0xff {
+                scan.push(value);
+                if scan.len() == scan.capacity() {
+                    digest.update(&scan);
+                    scan.clear();
+                }
+                continue;
+            }
+            let mut marker = vec![value];
+            let code = loop {
+                let value = byte(&mut source, "truncated JPEG marker")?;
+                marker.push(value);
+                if value != 0xff {
+                    break value;
+                }
+            };
+            if code == 0 || (0xd0..=0xd7).contains(&code) {
+                scan.extend_from_slice(&marker);
+                continue;
+            }
+            digest.update(&scan);
+            scan.clear();
+            in_scan = false;
+            pending = Some(marker);
+        }
 
-    // MD5 hash of metadata + pixel bytes
-    let mut hasher = md5::Context::new();
-    hasher.consume(meta_info.as_bytes());
-    hasher.consume(&pixel_bytes);
-    let hash = hasher.compute();
+        let marker = if let Some(marker) = pending.take() {
+            marker
+        } else {
+            if byte(&mut source, "JPEG has no EOI marker")? != 0xff {
+                bail!("unexpected data outside JPEG scan");
+            }
+            let mut marker = vec![0xff];
+            loop {
+                let value = byte(&mut source, "truncated JPEG marker")?;
+                marker.push(value);
+                if value != 0xff {
+                    break;
+                }
+            }
+            marker
+        };
+        let code = *marker.last().unwrap();
+        if code == 0xd9 {
+            digest.update(&marker);
+            return Ok(format!("{:x}", digest.finalize()));
+        }
+        if code == 0x01 || (0xd0..=0xd8).contains(&code) {
+            digest.update(&marker);
+            continue;
+        }
 
-    Ok(format!("{:x}", hash))
+        let mut length_bytes = [0u8; 2];
+        source.read_exact(&mut length_bytes)?;
+        let length = u16::from_be_bytes(length_bytes) as usize;
+        if length < 2 {
+            bail!("invalid JPEG segment length");
+        }
+        let retained = !matches!(code, 0xe1 | 0xed | 0xfe);
+        if retained {
+            digest.update(&marker);
+            digest.update(length_bytes);
+        }
+        let mut remaining = length - 2;
+        let mut buffer = [0u8; 65536];
+        while remaining != 0 {
+            let count = remaining.min(buffer.len());
+            source.read_exact(&mut buffer[..count])?;
+            if retained {
+                digest.update(&buffer[..count]);
+            }
+            remaining -= count;
+        }
+        in_scan = code == 0xda;
+    }
+}
+
+pub fn jpeg_content_sha256_bytes(data: &[u8]) -> Result<String> {
+    jpeg_content_sha256_reader(Cursor::new(data))
+}
+
+pub fn jpeg_content_sha256<P: AsRef<Path>>(path: P) -> Result<String> {
+    jpeg_content_sha256_reader(BufReader::new(File::open(path)?))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn shared_generated_exif_variants() {
+        let directory =
+            std::env::var("JPEG_HASH_FIXTURES").unwrap_or_else(|_| "../fixtures/generated".into());
+        let manifest = std::fs::read_to_string(Path::new(&directory).join("manifest.tsv"))
+            .expect("Run fixtures/generate.py first");
+        let rows: Vec<_> = manifest.lines().skip(1).collect();
+        assert_eq!(rows.len(), 30);
+        for row in rows {
+            let (name, expected) = row.split_once('\t').unwrap();
+            let path = Path::new(&directory).join(name);
+            assert_eq!(jpeg_content_sha256(&path).unwrap(), expected, "{name}");
+            assert_eq!(
+                jpeg_content_sha256_bytes(&std::fs::read(path).unwrap()).unwrap(),
+                expected,
+                "{name}"
+            );
+        }
+    }
+    const VECTORS: [(&str, &str); 2] = [
+        (
+            "IMG_0787.JPG",
+            "fdc79d5549c0fa9190c422afc9ae506964904a328ff5c67ef6298cd5ead8e6b7",
+        ),
+        (
+            "IMG_1039.JPG",
+            "8cb0c2dfb0fb6a2bb7ecd28555dd49ada047b2bb45c53be4aeea7d56edc86b9d",
+        ),
+    ];
+    fn fixture(name: &str) -> Vec<u8> {
+        std::fs::read(format!("../fixtures/{name}")).unwrap()
+    }
+    fn segment(marker: u8) -> Vec<u8> {
+        let body = b"metadata";
+        [
+            vec![0xff, marker],
+            ((body.len() + 2) as u16).to_be_bytes().to_vec(),
+            body.to_vec(),
+        ]
+        .concat()
+    }
+    fn inserted(data: &[u8], marker: u8) -> Vec<u8> {
+        [&data[..2], &segment(marker), &data[2..]].concat()
+    }
 
-    // use crate::pixel_md5::{hash_image, pixel_md5};
-    use image::open;
-    use std::collections::HashSet;
-    use std::path::PathBuf;
-
-    fn fixtures_dir() -> PathBuf {
-        PathBuf::from("../pixel-hash-py/tests/fixtures")
+    struct ShortRead<R>(R);
+    impl<R: Read> Read for ShortRead<R> {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            let count = buf.len().min(1);
+            self.0.read(&mut buf[..count])
+        }
     }
 
     #[test]
-    fn test_md5_path() {
-        let dir = fixtures_dir();
-        let path = dir.join("gradient_rgb.png");
-        let img = open(&path).unwrap();
-
-        let hash1 = pixel_md5(&path).unwrap();
-        let hash2 = hash_image(&img).unwrap();
-
-        assert_eq!(hash1, hash2);
+    fn known_cross_language_hashes_and_short_reads() {
+        for (name, expected) in VECTORS {
+            let data = fixture(name);
+            assert_eq!(
+                jpeg_content_sha256_reader(ShortRead(Cursor::new(data))).unwrap(),
+                expected
+            );
+        }
     }
-
     #[test]
-    fn test_image_formats() {
-        let dir = fixtures_dir();
-        let png = pixel_md5(dir.join("gradient_rgb.png")).unwrap();
-        let jpg = pixel_md5(dir.join("gradient_rgb.jpg")).unwrap();
-        let bmp = pixel_md5(dir.join("gradient_rgb.bmp")).unwrap();
-
-        let unique: HashSet<_> = vec![png, jpg, bmp].into_iter().collect();
-        assert!(
-            unique.len() > 1,
-            "Expected different hashes due to format compression differences"
-        );
-    }
-
-    #[test]
-    fn test_color_spaces() {
-        let dir = fixtures_dir();
-        let rgb = pixel_md5(dir.join("gradient_rgb.png")).unwrap();
-        let cmyk = pixel_md5(dir.join("gradient_cmyk.tiff")).unwrap();
-        let ycbcr = pixel_md5(dir.join("gradient_ycbcr.tiff")).unwrap();
-
-        let unique: HashSet<_> = vec![rgb, cmyk, ycbcr].into_iter().collect();
-        assert_eq!(
-            unique.len(),
-            3,
-            "Each color space should yield a unique hash"
-        );
-    }
-
-    #[test]
-    fn test_image_with_alpha() {
-        let dir = fixtures_dir();
-        let rgba_img = image::open(dir.join("gradient_rgba.png")).unwrap();
-        let rgb_img = rgba_img.clone().into_rgb8();
-        let rgb_img = image::DynamicImage::ImageRgb8(rgb_img);
-
-        let hash_rgba = hash_image(&rgba_img).unwrap();
-        let hash_rgb = hash_image(&rgb_img).unwrap();
-
+    fn ignores_metadata_and_trailer() {
+        for (name, expected) in VECTORS {
+            let data = fixture(name);
+            for marker in [0xe1, 0xed, 0xfe] {
+                assert_eq!(
+                    jpeg_content_sha256_bytes(&inserted(&data, marker)).unwrap(),
+                    expected
+                );
+            }
+            assert_eq!(
+                jpeg_content_sha256_bytes(&[data, b"trailer".to_vec()].concat()).unwrap(),
+                expected
+            );
+        }
+        let data = fixture(VECTORS[0].0);
         assert_ne!(
-            hash_rgba, hash_rgb,
-            "RGB and RGBA versions should yield different hashes"
+            jpeg_content_sha256_bytes(&inserted(&data, 0xe2)).unwrap(),
+            VECTORS[0].1
         );
     }
-
     #[test]
-    fn test_image_resize() {
-        let dir = fixtures_dir();
-        let small = pixel_md5(dir.join("gradient_rgb_small.png")).unwrap();
-        let large = pixel_md5(dir.join("gradient_rgb_large.png")).unwrap();
-        let original = pixel_md5(dir.join("gradient_rgb.png")).unwrap();
-
-        let unique: HashSet<_> = vec![small, large, original].into_iter().collect();
-        assert_eq!(
-            unique.len(),
-            3,
-            "Different sizes should yield different hashes"
-        );
+    fn rejects_bad_input() {
+        assert!(jpeg_content_sha256_bytes(b"not jpeg").is_err());
     }
 }
