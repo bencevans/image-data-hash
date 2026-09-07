@@ -65,7 +65,19 @@ cargo publish
 The crate's release archive excludes repository-only compatibility tests and
 camera fixtures. Those tests run in CI before publication.
 
-## CRAN
+## R (GitHub releases)
+
+R is distributed through tagged GitHub releases, not CRAN. After pushing the
+release tag, users can install it with:
+
+```r
+remotes::install_github("bencevans/image-data-hash", subdir = "image-data-hash-r", ref = "v0.1.0")
+```
+
+Install `remotes` first with `install.packages("remotes")` if needed.
+Keep the tag in the R README aligned with the intended release.
+
+### Optional future CRAN submission
 
 From the repository root:
 
@@ -74,7 +86,8 @@ R CMD build image-data-hash-r
 R CMD check --as-cran imageDataHash_0.1.0.tar.gz
 ```
 
-Submit the checked source archive through CRAN's submission form. CRAN review,
+If CRAN distribution is chosen later, submit the checked source archive through
+CRAN's submission form. CRAN review,
 email confirmation and registry acceptance are separate from local checks.
 The R package is named `imageDataHash`.
 

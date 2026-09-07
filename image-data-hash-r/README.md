@@ -3,7 +3,22 @@
 Native, in-memory JPEG ImageDataHash. R package name: `imageDataHash`.
 Runtime dependency: `digest`.
 
-## Installation from source
+## Installation from GitHub
+
+Install the tagged release from GitHub (the package is not on CRAN):
+
+```r
+install.packages("remotes")
+remotes::install_github(
+  "bencevans/image-data-hash",
+  subdir = "image-data-hash-r",
+  ref = "v0.1.0"
+)
+```
+
+This also installs the runtime dependency, `digest`.
+
+## Installation from a local checkout
 
 Install `digest` with `install.packages("digest")`, then from the repository root:
 
