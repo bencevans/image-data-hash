@@ -1,0 +1,19 @@
+[package]
+name = "image-data-hash"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.85"
+description = "Native JPEG image data hashing compatible with ExifTool"
+authors = ["Ben Evans <Benjamin.Evans@ioz.ac.uk>"]
+repository = "https://github.com/bencevans/image-data-hash"
+homepage = "https://github.com/bencevans/image-data-hash"
+readme = "README.md"
+keywords = ["jpeg", "exiftool", "hash", "md5", "sha256"]
+categories = ["multimedia::images"]
+include = ["src/**", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE"]
+
+[dependencies]
+anyhow = "1.0.98"
+sha2 = "0.10.9"
+md-5 = "0.10.6"

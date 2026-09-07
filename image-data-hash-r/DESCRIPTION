@@ -1,0 +1,13 @@
+Package: imageDataHash
+Type: Package
+License: MIT + file LICENSE
+Title: Native JPEG Image Data Hashing Compatible with ExifTool
+Version: 0.1.0
+Authors@R: person("Ben", "Evans", email = "Benjamin.Evans@ioz.ac.uk", role = c("aut", "cre"))
+Description: Computes MD5, SHA-256 and SHA-512 hashes of JPEG image data
+    using the ImageDataHash rules from ExifTool without an external process.
+Imports: digest
+Suggests: testthat, styler
+Encoding: UTF-8
+URL: https://github.com/bencevans/image-data-hash
+BugReports: https://github.com/bencevans/image-data-hash/issues

@@ -1,0 +1,57 @@
+{
+  "name": "image-data-hash",
+  "license": "MIT",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && npm run test:types && node --test test.js",
+    "test:types": "tsc --strict --noEmit --module NodeNext --target ES2022 test-types.ts",
+    "format": "prettier --write src test.js test-types.ts package.json tsconfig.json README.md",
+    "format:check": "prettier --check src test.js test-types.ts package.json tsconfig.json README.md",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "description": "Native JPEG image data hashing compatible with ExifTool",
+  "author": "Ben Evans <Benjamin.Evans@ioz.ac.uk>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bencevans/image-data-hash.git",
+    "directory": "image-data-hash-js"
+  },
+  "homepage": "https://github.com/bencevans/image-data-hash#readme",
+  "bugs": {
+    "url": "https://github.com/bencevans/image-data-hash/issues"
+  },
+  "keywords": [
+    "jpeg",
+    "exiftool",
+    "hash",
+    "md5",
+    "sha256",
+    "sha512"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@types/node": "^22.0.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}

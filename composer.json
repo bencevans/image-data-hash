@@ -1,0 +1,17 @@
+{
+  "name": "bencevans/image-data-hash",
+  "description": "Native JPEG image data hashing compatible with ExifTool",
+  "type": "library",
+  "license": "MIT",
+  "authors": [{ "name": "Ben Evans", "email": "Benjamin.Evans@ioz.ac.uk" }],
+  "homepage": "https://github.com/bencevans/image-data-hash",
+  "support": {
+    "issues": "https://github.com/bencevans/image-data-hash/issues",
+    "source": "https://github.com/bencevans/image-data-hash"
+  },
+  "require": { "php": ">=8.0", "ext-hash": "*" },
+  "autoload": { "files": ["image-data-hash-php/src/ImageDataHash.php"] },
+  "archive": {
+    "exclude": ["/.github", "/fixtures", "/image-data-hash-js", "/image-data-hash-py", "/image-data-hash-r", "/image-data-hash-rs", "/image-data-hash-php/vendor", "/image-data-hash-php/test.php"]
+  }
+}

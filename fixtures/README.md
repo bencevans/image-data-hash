@@ -1,26 +1,31 @@
-# Metadata regression fixtures
+# Compatibility fixtures
 
-Install ExifTool and run from the repository root:
+Install ExifTool and `cjpeg`, then run from the repository root:
 
 ```sh
 python3 fixtures/generate.py fixtures/generated
 ```
 
-The destination must be empty. Alternatively, generate into a fresh temporary
-directory and export its absolute path as `JPEG_HASH_FIXTURES` before running
-the language suites. Generated JPEGs are not committed.
+The destination must be empty. To use a temporary directory, export its absolute
+path as `JPEG_HASH_FIXTURES` before running any suite. Generated JPEGs are ignored
+by Git. The two original photographs are never modified.
 
-The generator makes 15 variants of each original: timestamp, GPS, orientation,
-description, copyright, EXIF species comment, IPTC keywords, XMP subject, large
-XMP description (multiple APP1 segments), JPEG comment, EXIF removal, thumbnail
-removal and replacement, ignored metadata removal, and combined edits.
+The 41 fixtures include:
 
-`manifest.tsv` assigns every variant its original's fixed SHA-256 content hash.
-Expected hashes are never computed with an implementation under test. The
-generator requires successful ExifTool execution, checks that each file changed,
-and reads back the tags added by the individual edit cases.
+- Two original camera-trap photographs.
+- Fifteen metadata variants per original: timestamp, GPS, orientation,
+  description, copyright, EXIF species comment, IPTC keywords, XMP subject,
+  large XMP description, JPEG comment, EXIF removal, thumbnail removal and
+  replacement, ignored-metadata removal, and combined edits.
+- Baseline, progressive and restart-marker JPEGs encoded from deterministic pixels.
+- Six structural vectors covering stuffing, restarts, fill bytes, multiple scans,
+  intervening comments and changed scan bytes. These test the parser and need not
+  be decodable photographs.
 
-All five suites require this manifest and check each variant through both file
-and buffer APIs. Existing negative controls also verify that retained APP2 data
-changes the hash. CI generates one artifact and passes the identical files and
-manifest to all five jobs, so their assertions establish cross-language equality.
+ExifTool generates all expected hashes in `manifest.tsv` (columns `file`,
+`md5`, `sha256`, `sha512`). The generator verifies that metadata edits retain
+the original hashes, and records `exiftool-version.txt`. No implementation under
+test is used to calculate expected values.
+
+Every language suite requires all 41 entries and checks each algorithm through
+file and buffer APIs. CI generates one artifact and shares it across the five jobs.
