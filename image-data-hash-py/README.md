@@ -1,12 +1,12 @@
-# image-data-hash for Python
+# image_data_hash for Python
 
 Native JPEG ImageDataHash matching ExifTool. Python 3.10+; no runtime dependencies.
-Distribution name: `image-data-hash`. Import name: `image_data_hash`.
+Distribution and import name: `image_data_hash`.
 
 ## Installation
 
 ```sh
-python3 -m pip install image-data-hash
+python3 -m pip install image_data_hash
 ```
 
 ## Usage

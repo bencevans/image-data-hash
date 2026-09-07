@@ -1,5 +1,5 @@
 [project]
-name = "image-data-hash"
+name = "image_data_hash"
 version = "0.1.0"
 description = "Native ExifTool-compatible JPEG image data hashing"
 readme = "README.md"

@@ -45,11 +45,13 @@ uvx twine check dist/*
 uv publish
 ```
 
-The distribution name is `image-data-hash`; the import is `image_data_hash`.
+The distribution and import name is `image_data_hash`.
 
 ## crates.io
 
 From `image-data-hash-rs`, with a clean committed working tree:
+
+The Cargo package and crate name is `image_data_hash`.
 
 ```sh
 cargo test --locked

@@ -9,8 +9,8 @@ The libraries do not launch ExifTool or decode pixels.
 | Language | Package | Documentation |
 | --- | --- | --- |
 | TypeScript / JavaScript (Node.js) | `image-data-hash` | [JavaScript README](image-data-hash-js/README.md) |
-| Python | `image-data-hash` (import `image_data_hash`) | [Python README](image-data-hash-py/README.md) |
-| Rust | `image-data-hash` (crate `image_data_hash`) | [Rust README](image-data-hash-rs/README.md) |
+| Python | `image_data_hash` | [Python README](image-data-hash-py/README.md) |
+| Rust | `image_data_hash` | [Rust README](image-data-hash-rs/README.md) |
 | R | `imageDataHash` | [R README](image-data-hash-r/README.md) |
 | PHP / Composer | `bencevans/image-data-hash` | [PHP README](image-data-hash-php/README.md) |
 

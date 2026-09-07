@@ -1,13 +1,13 @@
-# image-data-hash for Rust
+# image_data_hash for Rust
 
-Native JPEG ImageDataHash. Cargo package: `image-data-hash`.
+Native JPEG ImageDataHash. Cargo package: `image_data_hash`.
 Rust import: `image_data_hash`. Requires an edition-2024-capable Rust toolchain.
 
 ## Installation
 
 ```toml
 [dependencies]
-image-data-hash = "0.1"
+image_data_hash = "0.1"
 ```
 
 For local development, a Cargo path dependency can point to this directory.
